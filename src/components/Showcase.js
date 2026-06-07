@@ -1,4 +1,5 @@
 // src/components/Showcase.js — the character display (server component, no state).
+// Gear lives separately (GearGrid, in the left column under the calendar).
 import { classColor, QUALITY_COLOR, factionTheme } from "@/lib/wow";
 
 function Section({ title, children }) {
@@ -64,31 +65,6 @@ export default function Showcase({ c }) {
             <div className="muted" style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase" }}>{l}</div>
           </div>
         ))}
-      </div>
-
-      {/* GEAR */}
-      <div className="rise rise-3">
-        <Section title="Gear">
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
-            {(c.equipment ?? []).map((it, i) => (
-              <div key={i} title={`${it.name} (${it.ilvl ?? ""})`} style={{ position: "relative", width: 52, height: 52, borderRadius: 8, overflow: "hidden", border: `2px solid ${QUALITY_COLOR[it.quality] || "var(--border)"}` }}>
-                {it.icon
-                  // eslint-disable-next-line @next/next/no-img-element
-                  ? <img src={it.icon} alt="" style={{ width: "100%", height: "100%" }} />
-                  : <div style={{ width: "100%", height: "100%", background: "var(--surface-2)" }} />}
-                {it.ilvl && <span style={{ position: "absolute", right: 0, bottom: 0, fontSize: 10, fontWeight: 800, color: "#fff", background: "rgba(0,0,0,0.7)", padding: "0 2px" }}>{it.ilvl}</span>}
-              </div>
-            ))}
-          </div>
-          <div style={{ display: "grid", gap: 4 }}>
-            {(c.equipment ?? []).map((it, i) => (
-              <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid var(--border)" }}>
-                <span style={{ color: QUALITY_COLOR[it.quality] || "var(--text)" }}>{it.name}</span>
-                <span className="muted">{it.ilvl ?? ""}</span>
-              </div>
-            ))}
-          </div>
-        </Section>
       </div>
 
       {/* PROGRESS */}
