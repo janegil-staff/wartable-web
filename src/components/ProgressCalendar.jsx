@@ -142,7 +142,11 @@ export default function ProgressCalendar({ progress, charEvents = [], resets = [
               }}
             >
               {day}
-              <span style={{ position: "absolute", bottom: 3, right: 4, display: "flex", gap: 2 }}>
+              <span style={{
+                position: "absolute", bottom: 3, right: 4, left: 4,
+                display: "flex", flexWrap: "wrap-reverse", gap: 2,
+                justifyContent: "flex-end", alignItems: "flex-end",
+              }}>
                 {info?.newKills > 0 ? <Dot color="var(--gold)" /> : null}
                 {dots.map((k) => <Dot key={k} color={EVENT_META[k]?.color ?? "var(--text-muted)"} />)}
                 {isReset ? <Dot color="var(--text-muted)" /> : null}
