@@ -1,7 +1,7 @@
 // src/components/ProgressCalendar.jsx — month calendar for the shared character.
-// Mirrors the Recover dashboard calendar (month nav, weekday row, day cells,
-// legend, day-detail modal) but colours days by PROGRESS, not a health score.
-// Reads `progress.snapshots` from the /share/:code payload — no viewer login.
+// Colours days by PROGRESS (ilvl/rating/boss-kill diffs from progress.snapshots)
+// AND overlays dated history events (charEvents: M+ runs / raid kills /
+// achievements) as typed dots, with details in the day modal.
 "use client";
 import { useState, useMemo } from "react";
 
@@ -20,7 +20,14 @@ function bossTotal(snap) {
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const WEEKDAYS = ["M","T","W","T","F","S","S"];
 
-export default function ProgressCalendar({ progress, resets = [], affixes = [] }) {
+// event-type → dot colour + human label
+const EVENT_META = {
+  mplusRun:    { color: "var(--ember-bright, #f0a04b)", label: "Mythic+" },
+  raidKill:    { color: "var(--gold, #c8a24a)",         label: "Raid kill" },
+  achievement: { color: "var(--alliance, #3fa7ff)",     label: "Achievement" },
+};
+
+export default function ProgressCalendar({ progress, charEvents = [], resets = [], affixes = [] }) {
   const snapshots = progress?.snapshots ?? [];
 
   const byDay = useMemo(() => {
@@ -36,13 +43,24 @@ export default function ProgressCalendar({ progress, resets = [], affixes = [] }
     return map;
   }, [snapshots]);
 
+  // group dated history events by day → { 'YYYY-MM-DD': [{kind,label}] }
+  const eventsByDay = useMemo(() => {
+    const map = {};
+    (charEvents ?? []).forEach((e) => {
+      if (!e?.date) return;
+      (map[e.date] ||= []).push(e);
+    });
+    return map;
+  }, [charEvents]);
+
   const resetSet = useMemo(() => new Set(resets), [resets]);
 
   const initial = useMemo(() => {
     const last = snapshots[snapshots.length - 1];
-    const d = last ? new Date(last.date) : new Date();
+    const anchor = last ? last.date : (charEvents[0]?.date ?? null);
+    const d = anchor ? new Date(anchor) : new Date();
     return { y: d.getFullYear(), m: d.getMonth() };
-  }, [snapshots]);
+  }, [snapshots, charEvents]);
 
   const [month, setMonth] = useState(initial);
   const [modalDate, setModalDate] = useState(null);
@@ -59,7 +77,16 @@ export default function ProgressCalendar({ progress, resets = [], affixes = [] }
   };
 
   const sel = modalDate ? byDay[modalDate] : null;
+  const selEvents = modalDate ? (eventsByDay[modalDate] ?? []) : [];
   const selReset = modalDate ? resetSet.has(modalDate) : false;
+
+  // distinct event-kinds present on a day, for the dot row (max 3 dots)
+  function dayDots(ds) {
+    const evs = eventsByDay[ds] ?? [];
+    const kinds = [];
+    for (const e of evs) if (!kinds.includes(e.kind)) kinds.push(e.kind);
+    return kinds;
+  }
 
   return (
     <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden" }}>
@@ -92,11 +119,12 @@ export default function ProgressCalendar({ progress, resets = [], affixes = [] }
           const day = i + 1;
           const ds = ymd(y, m, day);
           const info = byDay[ds];
+          const dots = dayDots(ds);
           const isToday = ds === today;
           const isReset = resetSet.has(ds);
           const played = info?.played;
           const hasProgress = info && (info.ilvlUp > 0 || info.newKills > 0 || info.ratingUp > 0);
-          const clickable = !!info || isReset;
+          const clickable = !!info || isReset || dots.length > 0;
 
           return (
             <button
@@ -116,6 +144,7 @@ export default function ProgressCalendar({ progress, resets = [], affixes = [] }
               {day}
               <span style={{ position: "absolute", bottom: 3, right: 4, display: "flex", gap: 2 }}>
                 {info?.newKills > 0 ? <Dot color="var(--gold)" /> : null}
+                {dots.map((k) => <Dot key={k} color={EVENT_META[k]?.color ?? "var(--text-muted)"} />)}
                 {isReset ? <Dot color="var(--text-muted)" /> : null}
               </span>
             </button>
@@ -126,18 +155,20 @@ export default function ProgressCalendar({ progress, resets = [], affixes = [] }
       <div style={{ display: "flex", flexWrap: "wrap", gap: 14, justifyContent: "center", padding: "0 14px 14px" }}>
         <LegendItem swatch="var(--ember)" label="Progress" />
         <LegendItem swatch="var(--ember-soft, rgba(217,138,61,0.25))" label="Played" />
-        <LegendItem dot="var(--gold)" label="Boss kill" />
+        <LegendItem dot={EVENT_META.mplusRun.color} label="Mythic+" />
+        <LegendItem dot={EVENT_META.raidKill.color} label="Raid kill" />
+        <LegendItem dot={EVENT_META.achievement.color} label="Achievement" />
         <LegendItem dot="var(--text-muted)" label="Reset" />
       </div>
 
-      {modalDate && (sel || selReset) && (
+      {modalDate && (sel || selReset || selEvents.length > 0) && (
         <div
           onClick={() => setModalDate(null)}
           style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 20 }}
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 16, padding: 20, width: "100%", maxWidth: 380 }}
+            style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 16, padding: 20, width: "100%", maxWidth: 380, maxHeight: "80vh", overflowY: "auto" }}
           >
             <div style={{ fontSize: 16, fontWeight: 800, color: "var(--text)", marginBottom: 14, fontFamily: "'Cinzel',serif" }}>
               {modalDate}
@@ -152,6 +183,31 @@ export default function ProgressCalendar({ progress, resets = [], affixes = [] }
                     +{sel.newKills} boss {sel.newKills === 1 ? "kill" : "kills"}
                   </div>
                 )}
+              </div>
+            )}
+
+            {selEvents.length > 0 && (
+              <div style={{ marginBottom: 12 }}>
+                {["mplusRun", "raidKill", "achievement"].map((kind) => {
+                  const list = selEvents.filter((e) => e.kind === kind);
+                  if (list.length === 0) return null;
+                  const meta = EVENT_META[kind];
+                  return (
+                    <div key={kind} style={{ marginBottom: 10 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                        <span style={{ width: 8, height: 8, borderRadius: 4, background: meta.color }} />
+                        <span style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.6 }}>
+                          {meta.label}
+                        </span>
+                      </div>
+                      {list.map((e, i) => (
+                        <div key={i} style={{ color: "var(--text)", fontSize: 13, padding: "3px 0 3px 14px" }}>
+                          {e.label}
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })}
               </div>
             )}
 

@@ -4,17 +4,26 @@ import { useRouter } from "next/navigation";
 import { fetchShare } from "@/lib/api";
 import Showcase from "@/components/Showcase";
 import ProgressCalendar from "@/components/ProgressCalendar";
+import MonthSnapshot from "@/components/MonthSnapshot";
 import GearGrid from "@/components/GearGrid";
+import ProfessionsCard from "@/components/ProfessionsCard";
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [state, setState] = useState({ loading: true, data: null, error: null });
-
+  const [state, setState] = useState({
+    loading: true,
+    data: null,
+    error: null,
+  });
   useEffect(() => {
     let code = null;
-    try { code = sessionStorage.getItem("wt_code"); } catch {}
-    if (!code) { router.replace("/"); return; }
-
+    try {
+      code = sessionStorage.getItem("wt_code");
+    } catch {}
+    if (!code) {
+      router.replace("/");
+      return;
+    }
     const cacheKey = `wt_character_${code}`;
     try {
       const cached = sessionStorage.getItem(cacheKey);
@@ -23,80 +32,134 @@ export default function DashboardPage() {
         return;
       }
     } catch {}
-
     fetchShare(code).then((res) => {
       if (res?.error || !res?.character) {
         setState({ loading: false, data: null, error: res?.error || "server" });
       } else {
-        try { sessionStorage.setItem(cacheKey, JSON.stringify(res)); } catch {}
+        try {
+          sessionStorage.setItem(cacheKey, JSON.stringify(res));
+        } catch {}
         setState({ loading: false, data: res, error: null });
       }
     });
   }, [router]);
-
   if (state.loading) {
     return (
-      <main style={{ minHeight: "70vh", display: "grid", placeItems: "center" }}>
-        <p className="muted display" style={{ letterSpacing: "0.2em", textTransform: "uppercase" }}>
+      <main
+        style={{ minHeight: "70vh", display: "grid", placeItems: "center" }}
+      >
+        <p
+          className="muted display"
+          style={{ letterSpacing: "0.2em", textTransform: "uppercase" }}
+        >
           Loading…
         </p>
       </main>
     );
   }
-
   if (state.error || !state.data) {
     const msg =
-      state.error === "not_found" ? "No character found for that code."
-      : state.error === "bad_code" ? "That code isn't valid — it should be 6 digits."
-      : state.error === "expired" ? "That code has expired. Ask for a new one."
-      : "Couldn't load this character right now.";
+      state.error === "not_found"
+        ? "No character found for that code."
+        : state.error === "bad_code"
+          ? "That code isn't valid — it should be 6 digits."
+          : state.error === "expired"
+            ? "That code has expired. Ask for a new one."
+            : "Couldn't load this character right now.";
     return (
-      <main style={{ minHeight: "70vh", display: "grid", placeItems: "center", padding: 24 }}>
+      <main
+        style={{
+          minHeight: "70vh",
+          display: "grid",
+          placeItems: "center",
+          padding: 24,
+        }}
+      >
         <div style={{ textAlign: "center" }}>
-          <h1 className="display" style={{ fontSize: 28, color: "var(--text)" }}>Not found</h1>
-          <p className="muted" style={{ marginTop: 10 }}>{msg}</p>
-          <a href="/" className="display" style={{ display: "inline-block", marginTop: 22, padding: "12px 22px", borderRadius: 12, color: "#1a1206", background: "linear-gradient(180deg, var(--ember-bright), var(--ember))", fontWeight: 700 }}>
+          <h1
+            className="display"
+            style={{ fontSize: 28, color: "var(--text)" }}
+          >
+            Not found
+          </h1>
+          <p className="muted" style={{ marginTop: 10 }}>
+            {msg}
+          </p>
+          <a
+            href="/"
+            className="display"
+            style={{
+              display: "inline-block",
+              marginTop: 22,
+              padding: "12px 22px",
+              borderRadius: 12,
+              color: "#1a1206",
+              background:
+                "linear-gradient(180deg, var(--ember-bright), var(--ember))",
+              fontWeight: 700,
+            }}
+          >
             Try another code
           </a>
         </div>
       </main>
     );
   }
-
-  const { character, progress, schedule } = state.data;
-  const hasCalendar = progress?.snapshots?.length > 0;
-  const hasLeftCol = hasCalendar || (character?.equipment?.length > 0);
-
+  const { character, progress, schedule, charEvents } = state.data;
+  const hasCalendar = progress?.snapshots?.length > 0 || charEvents?.length > 0;
+  const hasLeftCol = true;
   return (
-    <main style={{ position: "relative", zIndex: 2, minHeight: "100vh", padding: "32px 16px" }}>
+    <main
+      style={{
+        position: "relative",
+        zIndex: 2,
+        minHeight: "100vh",
+        padding: "32px 16px",
+      }}
+    >
       <div
-        className="wt-dashboard-grid"
         style={{
-          maxWidth: 1180,
+          maxWidth: 880,
           margin: "0 auto",
-          display: "grid",
-          gridTemplateColumns: hasLeftCol ? "360px 1fr" : "1fr",
+          display: "flex",
+          flexDirection: "column",
           gap: 24,
-          alignItems: "start",
         }}
       >
-        {hasLeftCol && (
-          <div className="wt-left-col" style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-            {hasCalendar && (
+        {/* FULL-WIDTH SNAPSHOT — spans the calendar + showcase columns */}
+        {hasCalendar && (
+          <MonthSnapshot progress={progress} character={character} />
+        )}
+
+        <div
+          className="wt-dashboard-grid"
+          style={{
+            display: "grid",
+            gridTemplateColumns: hasLeftCol ? "1fr 1fr" : "1fr",
+            gap: 24,
+            alignItems: "start",
+          }}
+        >
+          {hasLeftCol && (
+            <div
+              className="wt-left-col"
+              style={{ display: "flex", flexDirection: "column", gap: 24 }}
+            >
               <ProgressCalendar
                 progress={progress}
-                resets={schedule?.resets ?? []}
-                affixes={schedule?.affixes ?? []}
+                charEvents={charEvents}
+                resets={schedule?.resets}
+                affixes={schedule?.affixes}
               />
-            )}
-            <GearGrid c={character} />
+              <GearGrid c={character} />
+              <ProfessionsCard professions={character?.professions} />
+            </div>
+          )}
+          <div>
+            <Showcase c={character} />
           </div>
-        )}
-        <div>
-          <Showcase c={character} />
         </div>
       </div>
-
       {/* responsive: stack to one column on narrow screens */}
       <style>{`
         @media (max-width: 900px) {
