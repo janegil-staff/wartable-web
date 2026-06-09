@@ -1,7 +1,8 @@
 "use client";
-// src/components/Header.js — shared web header: Wartable (home) link far-left,
-// Guild link + theme toggle + exit button far-right. The exit button clears the
-// entered code and returns to the landing page. Theme persists in a cookie.
+// src/components/Header.js — shared web header. Recover-style tab nav (Dashboard
+// + Guild) shows once a character is loaded; underline marks the active tab.
+// Far-right: theme toggle + exit (clears the entered code, returns to landing).
+// Theme persists in a cookie.
 import { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -20,7 +21,7 @@ export default function Header() {
   }, []);
 
   // Read the active character's guild from the cached share payload so we can
-  // show a Guild link. Re-checks on route change.
+  // show a Guild tab. Re-checks on route change.
   useEffect(() => {
     try {
       const code = sessionStorage.getItem("wt_code");
@@ -61,11 +62,39 @@ export default function Header() {
     display: "flex", alignItems: "center", justifyContent: "center",
   };
 
-  const linkStyle = {
-    display: "flex", alignItems: "center", height: 40, paddingInline: 16,
-    borderRadius: 999, border: "1px solid var(--border)", background: "var(--surface)",
-    color: "var(--text)", fontSize: 14, fontWeight: 700, textDecoration: "none",
-  };
+  // Recover-style tab: text + active underline, not a pill.
+  const guildHref = guild
+    ? `/guild/${guild.region}/${encodeURIComponent(guild.realm)}/${encodeURIComponent(guild.name)}`
+    : null;
+  const onGuild = pathname?.startsWith("/guild/");
+
+  // tabs only exist once a character is loaded (guild present implies loaded)
+  const showTabs = !!guild;
+
+  const tabStyle = (active) => ({
+    position: "relative",
+    display: "flex",
+    alignItems: "center",
+    height: 40,
+    padding: "0 4px",
+    color: active ? "var(--text)" : "var(--text-muted)",
+    fontSize: 14,
+    fontWeight: 700,
+    textDecoration: "none",
+    letterSpacing: "0.02em",
+    transition: "color 140ms ease",
+  });
+
+  const underline = (active) => ({
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: -15, // sit on the header's bottom border
+    height: 2,
+    borderRadius: 2,
+    background: active ? "var(--ember)" : "transparent",
+    transition: "background 140ms ease",
+  });
 
   return (
     <header style={{
@@ -76,19 +105,27 @@ export default function Header() {
       background: "color-mix(in srgb, var(--bg) 85%, transparent)",
       backdropFilter: "blur(8px)",
     }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-        <Link href="/dashboard" className="display" style={{ fontSize: 16, fontWeight: 900, letterSpacing: "0.22em", color: "var(--gold)", textTransform: "uppercase" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 28 }}>
+        <Link
+          href="/dashboard"
+          className="display"
+          style={{ fontSize: 16, fontWeight: 900, letterSpacing: "0.22em", color: "var(--gold)", textTransform: "uppercase", textDecoration: "none" }}
+        >
           Wartable
         </Link>
-        {guild ? (
-          <Link
-            href={`/guild/${guild.region}/${encodeURIComponent(guild.realm)}/${encodeURIComponent(guild.name)}`}
-            style={linkStyle}
-            title={`<${guild.name}>`}
-          >
-            ⚔ Guild
-          </Link>
-        ) : null}
+
+        {showTabs && (
+          <nav style={{ display: "flex", alignItems: "center", gap: 22 }} aria-label="Primary">
+            <Link href="/dashboard" style={tabStyle(onDashboard)}>
+              Character
+              <span style={underline(onDashboard)} />
+            </Link>
+            <Link href={guildHref} style={tabStyle(onGuild)} title={`<${guild.name}>`}>
+              Guild
+              <span style={underline(onGuild)} />
+            </Link>
+          </nav>
+        )}
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>

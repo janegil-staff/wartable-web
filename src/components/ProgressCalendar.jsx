@@ -241,7 +241,7 @@ export default function ProgressCalendar({ progress, charEvents = [], resets = [
 }
 
 function Dot({ color }) {
-  return <span style={{ width: 6, height: 6, borderRadius: 3, background: color, display: "inline-block" }} />;
+  return <span style={{ width: 9, height: 9, borderRadius: 5, background: color, display: "inline-block" }} />;
 }
 
 function LegendItem({ swatch, dot, label }) {
